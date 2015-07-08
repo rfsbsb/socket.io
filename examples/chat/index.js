@@ -26,7 +26,8 @@ io.on('connection', function (socket) {
     // we tell the client to execute 'new message'
     socket.broadcast.emit('new message', {
       username: socket.username,
-      message: data
+      message: data,
+      dateTime: new Date()
     });
   });
 
@@ -75,5 +76,12 @@ io.on('connection', function (socket) {
         numUsers: numUsers
       });
     }
+  });
+
+  socket.on('image', function(data){
+    socket.broadcast.emit('image', {
+      username: socket.username,
+      image: data
+    });
   });
 });

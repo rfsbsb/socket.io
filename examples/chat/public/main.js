@@ -12,12 +12,14 @@ $(function() {
   var $usernameInput = $('.usernameInput'); // Input for username
   var $messages = $('.messages'); // Messages area
   var $inputMessage = $('.inputMessage'); // Input message input box
+  var $inputImage = $('.inputImage'); // Input message input box
 
   var $loginPage = $('.login.page'); // The login page
   var $chatPage = $('.chat.page'); // The chatroom page
 
   // Prompt for setting a username
   var username;
+  var dateTime;
   var connected = false;
   var typing = false;
   var lastTypingTime;
@@ -61,11 +63,38 @@ $(function() {
       $inputMessage.val('');
       addChatMessage({
         username: username,
-        message: message
+        message: message,
+        dateTime: new Date()
       });
       // tell server to execute 'new message' and send along one parameter
       socket.emit('new message', message);
     }
+  }
+
+
+  // Sends a chat image
+  function sendImage (imageElement) {
+    //Get the first (and only one) file element
+    //that is included in the original event
+    var file = imageElement.files[0];
+    var reader = new FileReader();
+    //When the file has been read...
+    reader.onload = function(evt){
+      //Because of how the file was read,
+      //evt.target.result contains the image in base64 format
+      //Nothing special, just creates an img element
+      //and appends it to the DOM so my UI shows
+      //that I posted an image.
+      //send the image via Socket.io
+      addChatImage({
+        username: username,
+        image: evt.target.result
+      });
+      socket.emit('image', evt.target.result);
+    };
+    //And now, read the image and base64
+    reader.readAsDataURL(file);
+
   }
 
   // Log a message
@@ -83,6 +112,9 @@ $(function() {
       options.fade = false;
       $typingMessages.remove();
     }
+    var $dateTimeDiv = $('<span class="dateTime"/>')
+      .text(data.dateTime)
+      .css('color', getUsernameColor(data.username));
 
     var $usernameDiv = $('<span class="username"/>')
       .text(data.username)
@@ -94,7 +126,28 @@ $(function() {
     var $messageDiv = $('<li class="message"/>')
       .data('username', data.username)
       .addClass(typingClass)
+      .append($usernameDiv, $dateTimeDiv)
       .append($usernameDiv, $messageBodyDiv);
+
+
+
+    addMessageElement($messageDiv, options);
+  }
+
+  // Adds the visual chat message to the message list
+  function addChatImage (data, options) {
+    var $usernameDiv = $('<span class="username"/>')
+      .text(data.username)
+      .css('color', getUsernameColor(data.username));
+
+    var image = $("<img/>").attr("src", data.image).css("max-width", "350px");
+
+    var $imageDiv = $('<span class="imageBody">')
+      .html(image);
+
+    var $messageDiv = $('<li class="message"/>')
+      .data('username', data.username)
+      .append($usernameDiv, $imageDiv);
 
     addMessageElement($messageDiv, options);
   }
@@ -211,6 +264,10 @@ $(function() {
     updateTyping();
   });
 
+  $inputImage.on("change", function(){
+    sendImage(this);
+  });
+
   // Click events
 
   // Focus input when clicking anywhere on login page
@@ -239,6 +296,11 @@ $(function() {
   // Whenever the server emits 'new message', update the chat body
   socket.on('new message', function (data) {
     addChatMessage(data);
+  });
+
+  // Whenever the server emits 'new message', update the chat body
+  socket.on('image', function (data) {
+    addChatImage(data);
   });
 
   // Whenever the server emits 'user joined', log it in the chat body
